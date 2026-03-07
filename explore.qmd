@@ -1,0 +1,110 @@
+---
+title: Project Proposal for Modelling Democracy
+authors: Moksha Sharma, Divij Sinha
+format: html
+---
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+shrug_triv_elect <- read_csv("data/shrug-triv-elect-csv/trivedi_elections_clean.csv")
+shrug_triv_cand <- read_csv("data/shrug-triv-cand-csv/trivedi_candidates_clean.csv")
+shrug_adr_elect <- read_csv("data/shrug-adr-elections-ac-csv/affidavits_ac.csv")
+shrug_adr_cand <- read_csv("data/shrug-adr-elections-cand-csv/affidavits_clean.csv")
+```
+
+`shrug_triv_elect` -> Election level with winner info. Each row is one election (one state-year-seat)
+`shrug_triv_cand` -> Candidate level with candidate info. Each row is one election candidate (one state-year-seat-candidate)
+`shrug_adr_elect` -> Election level with avg affidavit info. Each row is one election (one state-year-seat)
+`shrug_adr_cand` -> Candidate level with candidate affidavit info. Each row is one candidate (one state-year-seat-candidate)
+
+## Total elections with NOTA
+
+Total number of elections
+
+```{r}
+print(nrow(shrug_triv_elect)) ## Total Elections in election data
+print(nrow(shrug_triv_cand %>% select(sh_election_id) %>% unique())) ## Total Elections in candidate data
+```
+
+Total number of non bye-poll elections 
+
+```{r}
+print(nrow(shrug_triv_elect %>% filter(bye_election == 0))) ## Total Elections in election data
+print(nrow(shrug_triv_cand %>% filter(bye_election == 0) %>% select(sh_election_id) %>% unique())) ## Total Elections in candidate data
+```
+
+All non bye-poll elections with nota flag
+
+```{r}
+election_is_nota <- shrug_triv_cand %>%
+    filter(bye_election == 0) %>%
+    group_by(sh_election_id, year) %>%
+    summarise(is_nota = any(tolower(cand_name) == "nota" | tolower(cand_name) == "none of the above"), .groups = "drop")
+
+head(election_is_nota)
+```
+
+Summary table
+
+```{r}
+election_is_nota %>%
+    group_by(year) %>%
+    summarise(
+        perc_nota_elections = mean(is_nota),
+        count_nota_elections = sum(is_nota),
+        count_total_elections = n(),
+    ) %>%
+    print(n = 50)
+```
+
+## Merging with affidavit 
+
+```{r}
+print(nrow(shrug_adr_elect)) ## Total Elections in affidavit data
+print(nrow(shrug_adr_cand %>% select(sh_election_id) %>% unique())) ## Total Elections in affidavit election data
+```
+
+Total number of non bye-poll elections 
+
+```{r}
+print(nrow(shrug_adr_elect %>% filter(bye_election == 0))) ## Total Elections in affidavit data
+print(nrow(shrug_adr_cand %>% filter(bye_election == 0) %>% select(sh_election_id) %>% unique())) ## Total Elections in affidavit election data
+```
+
+### Election level
+
+```{r}
+adr_elect <- inner_join(shrug_adr_elect, shrug_triv_elect) %>% inner_join(election_is_nota)
+
+adr_elect %>%
+    group_by(year) %>%
+    summarise(
+        perc_nota_elections = mean(is_nota),
+        count_nota_elections = sum(is_nota),
+        count_total_elections = n(),
+    ) %>%
+    print(n = 50)
+```
+
+### Candidate level
+
+```{r}
+adr_cand <- inner_join(shrug_adr_cand, shrug_triv_cand, by = join_by("sh_cand_id", "sh_election_id"), suffix = c("_adr", ""), ) %>% inner_join(election_is_nota)
+
+nrow(adr_cand)
+```
+
+```{r}
+adr_cand %>%
+    group_by(year) %>%
+    summarise(
+        mean_crimes = mean(num_crim),
+        median_crimes = median(num_crim),
+        max_crimes = max(num_crim),
+        perc_crime_major = mean(crime_major, na.rm = T),
+        perc_crime_major_adr = mean(crime_major_adr, na.rm = T)
+    )
+```
