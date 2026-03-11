@@ -9,7 +9,9 @@ execute:
 
 # Introduction
 
-India's Parliamentary Constituency (PC) and Assembly Constituency (AC) elections use plurality rule — each voter casts a single first-preference vote, and the candidate with the most votes wins. In 2013, India introduced "None of the Above" (NOTA) as a formal ballot option in all direct PC and AC elections.
+Voting is costly: eligible voters need to collect information on candidates, formulate their preferences, and find the time to express these preferences at the ballot. Given these costs, political scientists have offered many explanations for why citizens make the effort to vote despite their vanishingly small chances of casting the pivotal vote. Existing explanations focus on <civic duty, expressiveness, social pressure?>. However, these explanations fail to explain why people would take the time to familiarise themselves with the candidates, stand in line, and cast their vote, …
+
+Many countries offer a similar option to vote for no candidate listed on the ballot, but they impose different requirements for what to do with the outcomes of an election in which NOTA receives a substantial share of the vote. In Colombia and Bangladesh, for instance, elections need to be repeated if NOTA receives the absolute majority of the valid ballots. On the other hand, in India and Bulgaria, the votes are counted but not factored into the outcome of the elections. In other words, while NOTA allows voters in these countries to formally express their discontentment with the candidates, this discontentment is toothless: there are no formal requirements for repeating elections or banning candidates from running again. 
 
 NOTA is a distinctive modification to plurality. Unlike adding a candidate, NOTA accumulates votes but can never enter a winning coalition — structurally, it behaves as a dummy player. Even if NOTA receives the most votes, the leading candidate wins. (A few Municipal Elections have adopted re-election provisions when NOTA wins a majority, but no such rule applies to PC or AC races.) This creates an unusual dynamic: NOTA gives voters an expressive channel with no direct mechanical consequence for the outcome.
 
@@ -40,6 +42,7 @@ We start by estimating the effect of additional criminal cases against a candida
 #| message: false
 #| output: false
 library(tidyverse)
+library(fixest)
 shrug_triv_elect <- read_csv("data/shrug-triv-elect-csv/trivedi_elections_clean.csv")
 shrug_triv_cand <- read_csv("data/shrug-triv-cand-csv/trivedi_candidates_clean.csv")
 shrug_adr_elect <- read_csv("data/shrug-adr-elections-ac-csv/affidavits_ac.csv")
@@ -174,10 +177,9 @@ adr_cand %>%
 
 At the state level, we can see that average percentage of votes polled as NOTA hoever around 1%, with interesting outliers in the case of the states of Bihar and Chhattisgarh - both poorer states with a (at least perceived) higher degree of corruption and maladministration.
 
-**Constituency-year with NOTA votes higher than winning margin**
-
 ```{r}
 #| message: false
+#| warning: false
 election_nota_votes <- adr_cand %>%
     filter(nota_cand == 1) %>%
     mutate(
@@ -186,17 +188,40 @@ election_nota_votes <- adr_cand %>%
     ) %>%
     select(sh_election_id, nota_votes, nota_vote_share)
 
-nota_margin <- adr_cand %>%
+ggplot(data = election_nota_votes, aes(x = nota_vote_share * 100)) +
+    geom_density() +
+    geom_vline(xintercept = 1, color = "red") +
+    geom_vline(xintercept = 2, color = "red") +
+    annotate("text", x = 1.1, y = 1, label = "1%", size = 3) +
+    annotate("text", x = 2.1, y = 1, label = "2%", size = 3) +
+    labs(
+        x = "NOTA vote share (%)",
+        y = "Density",
+        title = "Distribution of NOTA vote share across elections"
+    ) +
+    theme_minimal()
+```
+
+**Constituency-year with NOTA votes higher than winning margin**
+
+```{r}
+#| message: false
+
+win_margin <- adr_cand %>%
     arrange(sh_election_id, desc(votes)) %>%
     group_by(sh_election_id) %>%
     mutate(
         win_margin = max(votes) - votes,
+        win_margin_perc = 100 * (win_margin / valid_votes)
     ) %>%
     filter(win_margin != 0) %>%
     group_by(sh_election_id) %>%
     summarise(
-        win_margin = min(win_margin)
-    ) %>%
+        win_margin = min(win_margin),
+        win_margin_perc = min(win_margin_perc)
+    )
+
+nota_margin <- win_margin %>%
     inner_join(election_nota_votes) %>%
     mutate(diff_votes = win_margin - nota_votes) %>%
     arrange(diff_votes)
@@ -213,16 +238,39 @@ The NOTA vote represents something unique, it is someone taking the effort to th
 Let's now look at turnout trends, and vote-margins, pre and post NOTA
 
 ```{r}
-
+shrug_triv_elect %>%
+    filter(year >= 2004) %>%
+    inner_join(election_is_nota) %>%
+    feols(fml = turnout_percentage ~ is_nota | year + pc01_state_id + tr_ac_id, data = .) %>%
+    summary()
 ```
 
+As we can see, NOTA seems to have a weak impact on turnout trends, looking at the 10 year window before and after the introduction of the change!
 
+```{r}
+shrug_triv_elect %>%
+    filter(year >= 2004) %>%
+    inner_join(election_is_nota) %>%
+    inner_join(win_margin) %>%
+    feols(fml = win_margin_perc ~ is_nota | year + pc01_state_id + tr_ac_id, data = .) %>%
+    summary()
+```
 
+However, NOTA does not seem to impact the average win margin.
 
+```{r}
+shrug_triv_elect %>%
+    filter(year >= 2004) %>%
+    inner_join(election_is_nota) %>%
+    feols(fml = n_cand ~ is_nota | year + pc01_state_id + tr_ac_id, data = .) %>%
+    summary()
+```
 
+More importantly, it seems to reduce the average number of candidates in the election by 2!
 
+The number of candidates is already quite high, with a median above 10, but since most of candidates are not competitive, this is showing us that since there is already a sink for protest votes, protest candidates, rarely, if at all run for election now that NOTA is an option.
 
-
+NOTE: The rest is still WIP
 
 ```{r}
 ggplot(data = nota_margin %>% filter(abs(diff_votes) < 500)) +
@@ -232,8 +280,61 @@ ggplot(data = nota_margin %>% filter(abs(diff_votes) < 500)) +
 
 However, if elections are close, people seem to be voting for NOT nota so the election has more win margin(??)
 
+<!-- 
+**Distribution of NOTA vote share**
 
-## OTher tables 
+```{r}
+#| message: false
+ggplot(data = nota_margin, aes(x = nota_vote_share * 100)) +
+    geom_density(fill = "steelblue", alpha = 0.4, color = "steelblue4") +
+    geom_vline(xintercept = 1, linetype = "dashed", color = "firebrick", linewidth = 0.7) +
+    geom_vline(xintercept = 2, linetype = "dotted", color = "firebrick", linewidth = 0.7) +
+    annotate("text", x = 1.1, y = Inf, label = "1%", vjust = 2, hjust = 0, color = "firebrick", size = 3) +
+    annotate("text", x = 2.1, y = Inf, label = "2%", vjust = 2, hjust = 0, color = "firebrick", size = 3) +
+    labs(
+        x = "NOTA vote share (%)",
+        y = "Density",
+        title = "Distribution of NOTA vote share across elections"
+    ) +
+    theme_minimal()
+```
+
+The distribution is heavily right-skewed: the vast majority of elections see NOTA below 2%, but a non-trivial tail extends beyond that. The 1% and 2% reference lines put the "spoiler zone" in context — the elections flagged above as margin < NOTA votes live in this right tail.
+-->
+
+<!-- **NOTA vote share vs. winning margin**
+
+```{r}
+#| message: false
+nota_margin_plot <- nota_margin %>%
+    mutate(
+        nota_vote_share_perc = nota_vote_share * 100,
+        spoiler = diff_votes <= 0
+    )
+
+ggplot(data = nota_margin_plot, aes(x = nota_vote_share_perc, y = win_margin_perc, color = spoiler)) +
+    geom_point(alpha = 0.3, size = 0.8) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black", linewidth = 0.8) +
+    scale_color_manual(
+        values = c("FALSE" = "steelblue", "TRUE" = "firebrick"),
+        labels = c("FALSE" = "Margin > NOTA", "TRUE" = "Margin ≤ NOTA"),
+        name = NULL
+    ) +
+    coord_cartesian(xlim = c(0, 8), ylim = c(0, 20)) +
+    labs(
+        x = "NOTA vote share (%)",
+        y = "Win margin (% of valid votes)",
+        title = "NOTA vote share vs. winning margin",
+        subtitle = "Elections below the diagonal line have margin ≤ NOTA votes"
+    ) +
+    theme_minimal() +
+    theme(legend.position = "bottom")
+```
+
+Elections in red fall below the diagonal — their margin of victory was smaller than the NOTA vote. These are the elections where NOTA was structurally decisive, even though it mechanically could not affect the outcome. The clustering of most elections well above the diagonal confirms that this is a tail phenomenon, but the red points establish that it is not negligible.
+ -->
+
+## Other tables 
 
 Criminal affidavits per const
 
@@ -243,8 +344,7 @@ election_crim <- adr_cand %>%
     filter(is_nota == 1) %>%
     group_by(sh_election_id) %>%
     summarise(
-        sum_num_crim = sum(num_crim, na.rm = TRUE),
-        num_crim = sum(num_crim > 0, na.rm = TRUE),
+        num_criminals = sum(num_crim > 0, na.rm = TRUE),
         median_num_crim = median(num_crim, na.rm = TRUE),
         mean_num_crim = mean(num_crim, na.rm = TRUE)
     ) %>%
@@ -252,7 +352,7 @@ election_crim <- adr_cand %>%
 
 
 cm_nota <- election_crim %>%
-    group_by(sum_num_crim) %>%
+    group_by(median_num_crim) %>%
     summarise(
         median_nota_vote_share = median(nota_vote_share, na.rm = TRUE),
         mean_nota_vote_share = mean(nota_vote_share, na.rm = TRUE)
@@ -260,7 +360,7 @@ cm_nota <- election_crim %>%
 
 
 ggplot(data = cm_nota) +
-    geom_col(aes(x = sum_num_crim, y = median_nota_vote_share))
+    geom_col(aes(x = median_num_crim, y = median_nota_vote_share))
 ```
 
 
