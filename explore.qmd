@@ -3,6 +3,8 @@ title: Project Proposal for Modelling Democracy
 authors: Moksha Sharma, Divij Sinha
 format: html
 bibliography: references.bib
+execute:
+  cache: true
 ---
 
 # Introduction
@@ -34,6 +36,9 @@ We start by estimating the effect of additional criminal cases against a candida
 # Analysis
 
 ```{r setup}
+#| warning: false
+#| message: false
+#| output: false
 library(tidyverse)
 shrug_triv_elect <- read_csv("data/shrug-triv-elect-csv/trivedi_elections_clean.csv")
 shrug_triv_cand <- read_csv("data/shrug-triv-cand-csv/trivedi_candidates_clean.csv")
@@ -41,28 +46,35 @@ shrug_adr_elect <- read_csv("data/shrug-adr-elections-ac-csv/affidavits_ac.csv")
 shrug_adr_cand <- read_csv("data/shrug-adr-elections-cand-csv/affidavits_clean.csv")
 ```
 
-`shrug_triv_elect` -> Election level with winner info. Each row is one election (one state-year-seat)
-`shrug_triv_cand` -> Candidate level with candidate info. Each row is one election candidate (one state-year-seat-candidate)
-`shrug_adr_elect` -> Election level with avg affidavit info. Each row is one election (one state-year-seat)
+`shrug_triv_elect` -> Election level with winner info. Each row is one election (one state-year-seat)  
+`shrug_triv_cand` -> Candidate level with candidate info. Each row is one election candidate (one state-year-seat-candidate)  
+`shrug_adr_elect` -> Election level with avg affidavit info. Each row is one election (one state-year-seat)  
 `shrug_adr_cand` -> Candidate level with candidate affidavit info. Each row is one candidate (one state-year-seat-candidate)
 
-## Total elections with NOTA
+## Basic Data Landscape
 
-Total number of elections
+### Elections
+
+We have access to state election level data for election results and candidate level affidavits. 
+
+We first start by looking at the election level data. These include elections from 1979 to 2022.
 
 ```{r}
+#| results: hold
 print(nrow(shrug_triv_elect)) ## Total Elections in election data
 print(nrow(shrug_triv_cand %>% select(sh_election_id) %>% unique())) ## Total Elections in candidate data
 ```
 
-Total number of non bye-poll elections 
-
 ```{r}
+#| results: hold
 print(nrow(shrug_triv_elect %>% filter(bye_election == 0))) ## Total Elections in election data
 print(nrow(shrug_triv_cand %>% filter(bye_election == 0) %>% select(sh_election_id) %>% unique())) ## Total Elections in candidate data
 ```
 
-All non bye-poll elections with nota flag
+Therefore, we have a total of ~43,000 elections, which upon filtering to remove bye-poll elections leaves us with ~41,600 elections. 
+
+We remove bye-polls because they usually have different, smaller sets of candidates and compaigns, and have no compulsion to have "None of the Above" as an option.
+
 
 ```{r}
 election_is_nota <- shrug_triv_cand %>%
@@ -70,12 +82,6 @@ election_is_nota <- shrug_triv_cand %>%
     group_by(sh_election_id, year) %>%
     summarise(is_nota = any(tolower(cand_name) == "nota" | tolower(cand_name) == "none of the above"), .groups = "drop")
 
-head(election_is_nota)
-```
-
-Summary table
-
-```{r}
 election_is_nota %>%
     group_by(year) %>%
     summarise(
@@ -86,23 +92,31 @@ election_is_nota %>%
     print(n = 50)
 ```
 
-## Merging with affidavit 
+Within these, as we can see, the elections with NOTA as an option start happening in 2013, and barring one bad data point, exist in every election since.
 
+### Affidavits
+
+<!-- 
 ```{r}
+#| results: hold
 print(nrow(shrug_adr_elect)) ## Total Elections in affidavit data
 print(nrow(shrug_adr_cand %>% select(sh_election_id) %>% unique())) ## Total Elections in affidavit election data
 ```
 
-Total number of non bye-poll elections 
-
 ```{r}
+#| results: hold
 print(nrow(shrug_adr_elect %>% filter(bye_election == 0))) ## Total Elections in affidavit data
 print(nrow(shrug_adr_cand %>% filter(bye_election == 0) %>% select(sh_election_id) %>% unique())) ## Total Elections in affidavit election data
-```
+``` 
+-->
 
-### Election level
+Now, looking at the affidavit level data, we have information on affidavits from 2004 to 2017. While this limits the election data we are able to use, as we can see, it still gives us about 11,000 elections we can still analyse.
+
+**Merging election level affidavit data**
 
 ```{r}
+#| results: hold
+#| message: false
 adr_elect <- inner_join(shrug_adr_elect, shrug_triv_elect) %>% inner_join(election_is_nota)
 
 adr_elect %>%
@@ -115,47 +129,55 @@ adr_elect %>%
     print(n = 50)
 ```
 
-### Candidate level
-
 ```{r}
-adr_cand <- left_join(shrug_triv_cand, shrug_adr_cand, by = join_by("sh_cand_id", "sh_election_id"), suffix = c("", "_adr"), ) %>% inner_join(election_is_nota)
-
-nrow(adr_cand)
+adr_elect %>% group_by(is_nota) %>% summarise(n = n())
 ```
 
+**Merging Candidate level affidavit data**
+
 ```{r}
+#| message: false
+adr_cand <- left_join(shrug_triv_cand, shrug_adr_cand, by = join_by("sh_cand_id", "sh_election_id"), suffix = c("", "_adr"), ) %>%
+    inner_join(election_is_nota)
+
 adr_cand %>%
+    filter(!is.na(adr_cand_id)) %>%
     group_by(year) %>%
     summarise(
-        mean_crimes = mean(num_crim),
-        median_crimes = median(num_crim),
-        max_crimes = max(num_crim),
+        mean_crimes = mean(num_crim, na.rm = T),
+        median_crimes = median(num_crim, na.rm = T),
+        max_crimes = max(num_crim, na.rm = T),
         perc_crime_major = mean(crime_major, na.rm = T),
         perc_crime_major_adr = mean(crime_major_adr, na.rm = T)
-    )
+    ) %>%
+    round(2)
 ```
 
-# Estimations 
+## Estimations 
 
-
-State year average nota vote share
+**Average NOTA share by state-year**
 
 ```{r}
+#| message: false
 adr_cand <- adr_cand %>%
-    mutate(nota_cand = ifelse(cand_name == "nota" | cand_name == "none of the above", 1, 0))
+    mutate(nota_cand = ifelse(tolower(cand_name) %in% c("nota", "none of the above"), 1, 0))
 
 adr_cand %>%
     filter(nota_cand == 1) %>%
     group_by(eci_state_name, year) %>%
     summarise(
-        median_vote_share_percentage = median(vote_share_percentage),
-        mean_vote_share_percentage = mean(vote_share_percentage),
-    )
+        median_vsp = median(vote_share_percentage),
+        mean_vsp = mean(vote_share_percentage),
+    ) %>%
+    print(n=40)
 ```
 
-Constituency year with nota > win margin
+At the state level, we can see that average percentage of votes polled as NOTA hoever around 1%, with interesting outliers in the case of the states of Bihar and Chhattisgarh - both poorer states with a (at least perceived) higher degree of corruption and maladministration.
+
+**Constituency-year with NOTA votes higher than winning margin**
 
 ```{r}
+#| message: false
 election_nota_votes <- adr_cand %>%
     filter(nota_cand == 1) %>%
     mutate(
@@ -163,7 +185,6 @@ election_nota_votes <- adr_cand %>%
         nota_vote_share = votes / valid_votes
     ) %>%
     select(sh_election_id, nota_votes, nota_vote_share)
-
 
 nota_margin <- adr_cand %>%
     arrange(sh_election_id, desc(votes)) %>%
@@ -179,7 +200,27 @@ nota_margin <- adr_cand %>%
     inner_join(election_nota_votes) %>%
     mutate(diff_votes = win_margin - nota_votes) %>%
     arrange(diff_votes)
+
+nota_margin %>% filter(diff_votes <= 0)
 ```
+
+Surprisingly, of the 7,544 elections that have NOTA as an option, 474 or over 6% of the elections have a margin of victory that is less than the NOTA votes polled!
+
+This points to the fact that some of these elections could actually be quite sensitive to the NOTA vote.
+
+The NOTA vote represents something unique, it is someone taking the effort to the voting booth, stand in line for potentially hours, and then in some sense reveal a preference in a manner that is not really "relevant" to the election result. It is a costly signal with little to no benefit.
+
+Let's now look at turnout trends, and vote-margins, pre and post NOTA
+
+```{r}
+
+```
+
+
+
+
+
+
 
 
 
@@ -187,9 +228,6 @@ nota_margin <- adr_cand %>%
 ggplot(data = nota_margin %>% filter(abs(diff_votes) < 500)) +
     geom_histogram(aes(x = diff_votes), binwidth = 5)
 ```
-
-
-0.06283139 of elections have margin of victory smaller than nota vote share !!!!
 
 
 However, if elections are close, people seem to be voting for NOT nota so the election has more win margin(??)
