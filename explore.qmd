@@ -242,7 +242,8 @@ Let's now look at turnout trends, and vote-margins, pre and post NOTA
 shrug_triv_elect %>%
     filter(year >= 2004) %>%
     inner_join(election_is_nota) %>%
-    feols(fml = turnout_percentage ~ is_nota | year + pc01_state_id + tr_ac_id, data = .) %>%
+    mutate(year_2013 = year - 2013) %>%
+    feols(fml = turnout_percentage ~ is_nota * year_2013 | pc01_state_id + ac_id, cluster = ~ pc01_state_id + ac_id, data = .) %>%
     summary()
 ```
 
@@ -253,7 +254,8 @@ shrug_triv_elect %>%
     filter(year >= 2004) %>%
     inner_join(election_is_nota) %>%
     inner_join(win_margin) %>%
-    feols(fml = win_margin_perc ~ is_nota | year + pc01_state_id + tr_ac_id, data = .) %>%
+    mutate(year_2013 = year - 2013) %>%
+    feols(fml = win_margin_perc ~ is_nota * year_2013 | pc01_state_id + ac_id, cluster = ~ pc01_state_id + ac_id, data = .) %>%
     summary()
 ```
 
@@ -265,7 +267,8 @@ shrug_triv_elect %>%
     inner_join(election_is_nota) %>%
     inner_join(win_margin) %>%
     filter(win_margin_perc <= 1) %>%
-feols(fml = win_margin_perc ~ is_nota | year + pc01_state_id + tr_ac_id, data = .) %>%
+    mutate(year_2013 = year - 2013) %>%
+    feols(fml = win_margin_perc ~ is_nota * year_2013 | pc01_state_id + ac_id, cluster = ~ pc01_state_id + ac_id, data = .) %>%
     summary()
 ```
 
@@ -275,7 +278,8 @@ More importantly, it seems to reduce the average number of candidates in the ele
 shrug_triv_elect %>%
     filter(year >= 2004) %>%
     inner_join(election_is_nota) %>%
-    feols(fml = n_cand ~ is_nota | year + pc01_state_id + tr_ac_id, data = .) %>%
+    mutate(year_2013 = year - 2013) %>%
+    feols(fml = n_cand ~ is_nota * year_2013 | pc01_state_id + ac_id, cluster = ~ pc01_state_id + ac_id, data = .) %>%
     summary()
 ```
 
@@ -322,10 +326,9 @@ adr_cand %>%
 
 The mean election candidate has 0.2 crimes. 
 
-
 ```{r}
 adr_cand %>%
-    group_by(sh_election_id, pc01_state_id, tr_ac_id) %>%
+    group_by(sh_election_id, pc01_state_id, ac_id) %>%
     summarise(
         num_criminals = sum(num_crim > 0, na.rm = TRUE),
         median_num_crim = median(num_crim, na.rm = TRUE),
@@ -334,7 +337,8 @@ adr_cand %>%
     ungroup() %>%
     inner_join(election_is_nota) %>%
     filter(year >= 2004) %>%
-feols(fml = num_criminals ~ is_nota | year + pc01_state_id + tr_ac_id, data = .) %>%
+    mutate(year_2013 = year - 2013) %>%
+    feols(fml = num_criminals ~ is_nota * year_2013 | pc01_state_id + ac_id, cluster = ~ pc01_state_id + ac_id, data = .) %>%
     summary()
 ```
 
@@ -342,13 +346,70 @@ NOTA has not had an impact on the number of criminal candidates running in elect
 
 ```{r}
 adr_cand %>%
-    group_by(sh_election_id, pc01_state_id, tr_ac_id) %>%
+    group_by(sh_election_id, pc01_state_id, ac_id) %>%
     inner_join(election_is_nota) %>%
     filter(year >= 2004) %>%
-    feols(fml = vote_share_percentage ~ is_nota * crime_major | year + pc01_state_id + tr_ac_id, data = .) %>%
+    mutate(year_2013 = year - 2013) %>%
+    feols(fml = vote_share_percentage ~ is_nota * year_2013 * crime_major | pc01_state_id + ac_id, cluster = ~ pc01_state_id + ac_id, data = .) %>%
     summary()
 ```
 
+```{r}
+adr_election_crim <- adr_cand %>%
+    group_by(sh_election_id, pc01_state_id, ac_id, year) %>%
+    summarise(
+        num_criminals = sum(num_crim > 0, na.rm = TRUE),
+        median_num_crim = median(num_crim, na.rm = TRUE),
+        mean_num_crim = mean(num_crim, na.rm = TRUE)
+    ) %>%
+    ungroup() %>%
+    inner_join(election_nota_votes) %>%
+    mutate(nota_vote_share = nota_vote_share * 100) %>%
+    filter(year >= 2004) %>%
+    mutate(year_2013 = year - 2013)
+
+feols(fml = nota_vote_share ~ num_criminals * year_2013 | pc01_state_id + ac_id, cluster = ~ pc01_state_id + ac_id, data = adr_election_crim) %>%
+    summary()
+```
+
+The more criminal candidates there are, the fewer NOTA votes we have?
+
+
+However, the wealth characteristics of a candidate (income, assets, liabilites, cash on hand) do not have correlation with how many NOTA votes an election gets.
+
+```{r}
+adr_election_assets <- adr_cand %>%
+    filter(!is.na(adr_cand_id)) %>%
+    group_by(sh_election_id, pc01_state_id, ac_id, year) %>%
+    summarise(
+        mean_liabilities = mean(liabilities, na.rm = T),
+        mean_cash = mean(cash, na.rm = T),
+        mean_income = mean(income, na.rm = T),
+        mean_assets = mean(assets, na.rm = T),
+        median_liabilities = median(liabilities, na.rm = T),
+        median_cash = median(cash, na.rm = T),
+        median_income = median(income, na.rm = T),
+        median_assets = median(assets, na.rm = T),
+    ) %>%
+    ungroup() %>%
+    inner_join(election_nota_votes) %>%
+    mutate(nota_vote_share = nota_vote_share * 100) %>%
+    filter(year >= 2004) %>%
+    mutate(
+        year_2013 = year - 2013,
+        log_median_assets = log(median_assets + 1),
+        log_median_liabilities = log(median_liabilities + 1),
+        log_median_income = log(median_income + 1)
+    )
+
+feols(fml = nota_vote_share ~ log_median_assets * year_2013 | pc01_state_id, cluster = ~ pc01_state_id, data = adr_election_assets) %>%
+    summary()
+```
+
+```{r}
+feols(fml = nota_vote_share ~ log_median_liabilities * year_2013 | pc01_state_id, cluster = ~pc01_state_id, data = adr_election_assets) %>%
+    summary()
+```
 
 NOTE: The rest is still WIP
 
@@ -414,18 +475,14 @@ Criminal affidavits per const
 
 
 ```{r}
-
-
-cm_nota <- election_crim %>%
-    group_by(median_num_crim) %>%
+adr_election_crim %>%
+    group_by(num_criminals) %>%
     summarise(
         median_nota_vote_share = median(nota_vote_share, na.rm = TRUE),
         mean_nota_vote_share = mean(nota_vote_share, na.rm = TRUE)
-    )
-
-
-ggplot(data = cm_nota) +
-    geom_col(aes(x = median_num_crim, y = median_nota_vote_share))
+    ) %>%
+    ggplot(data = .) +
+    geom_col(aes(x = num_criminals, y = median_nota_vote_share))
 ```
 
 
