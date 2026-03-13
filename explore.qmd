@@ -144,7 +144,6 @@ adr_elect %>%
 adr_elect %>% group_by(is_nota) %>% summarise(n = n())
 ```
 
-
 ```{r}
 adr_cand <- left_join(shrug_triv_cand, shrug_adr_cand, by = join_by("sh_cand_id", "sh_election_id"), suffix = c("", "_adr"), ) %>%
     inner_join(election_is_nota)
@@ -171,7 +170,9 @@ adr_cand %>%
     mutate(year = as.factor(year)) %>%
     filter(nota_cand == 1) %>%
     ggplot(data = .) +
-    geom_density(aes(x = vote_share_percentage, fill = eci_state_name, alpha = 0.05))
+    geom_density(aes(x = vote_share_percentage, fill = eci_state_name, alpha = 0.05)) +
+    theme_minimal() +
+    guides(alpha = "none")
 ```
 
 At the state level, we can see that average percentage of votes polled as NOTA hoever around 1%, with interesting outliers in the case of the states of Bihar and Chhattisgarh - both poorer states with a (at least perceived) higher degree of corruption and maladministration.
@@ -203,7 +204,6 @@ ggplot(data = election_nota_votes, aes(x = nota_vote_share * 100)) +
 **Constituency-year with NOTA votes higher than winning margin**
 
 ```{r}
-
 win_margin <- adr_cand %>%
     arrange(sh_election_id, desc(votes)) %>%
     group_by(sh_election_id) %>%
@@ -243,11 +243,13 @@ shrug_triv_elect %>%
     filter(year >= 2004) %>%
     inner_join(election_is_nota) %>%
     mutate(year_2013 = year - 2013) %>%
-    feols(fml = turnout_percentage ~ is_nota * year_2013 | pc01_state_id + ac_id, cluster = ~ pc01_state_id + ac_id, data = .) %>%
+    feols(fml = turnout_percentage ~ is_nota * year_2013 | ac_id, cluster = ~ pc01_state_id, data = .) %>%
     summary()
 ```
 
-As we can see, NOTA seems to have a weak impact on turnout trends, looking at the 10 year window before and after the introduction of the change!
+As we can see, NOTA seems to have no real impact on turnout trends, looking at the 10 year window before and after the introduction of the change. There was a strong increase in turnout trends till 2013, when NOTA was introduced, and there seems to be a flattening of this increase since them.
+
+This could be associated with NOTA, or with the general increase in political participation that led to NOTA such as the 2013 India Against Corruption protests, and the subsequent flattening is some sort of mean reversion.
 
 ```{r}
 shrug_triv_elect %>%
@@ -255,7 +257,7 @@ shrug_triv_elect %>%
     inner_join(election_is_nota) %>%
     inner_join(win_margin) %>%
     mutate(year_2013 = year - 2013) %>%
-    feols(fml = win_margin_perc ~ is_nota * year_2013 | pc01_state_id + ac_id, cluster = ~ pc01_state_id + ac_id, data = .) %>%
+    feols(fml = win_margin_perc ~ is_nota * year_2013 | ac_id, cluster = ~ pc01_state_id, data = .) %>%
     summary()
 ```
 
@@ -268,24 +270,22 @@ shrug_triv_elect %>%
     inner_join(win_margin) %>%
     filter(win_margin_perc <= 1) %>%
     mutate(year_2013 = year - 2013) %>%
-    feols(fml = win_margin_perc ~ is_nota * year_2013 | pc01_state_id + ac_id, cluster = ~ pc01_state_id + ac_id, data = .) %>%
+    feols(fml = win_margin_perc ~ is_nota * year_2013 | ac_id, cluster = ~ pc01_state_id, data = .) %>%
     summary()
 ```
 
-More importantly, it seems to reduce the average number of candidates in the election by 2!
+The effect on the number of candidates seems to be non-existent as well. 
 
 ```{r}
 shrug_triv_elect %>%
     filter(year >= 2004) %>%
     inner_join(election_is_nota) %>%
     mutate(year_2013 = year - 2013) %>%
-    feols(fml = n_cand ~ is_nota * year_2013 | pc01_state_id + ac_id, cluster = ~ pc01_state_id + ac_id, data = .) %>%
+    feols(fml = n_cand ~ is_nota * year_2013 | ac_id, cluster = ~ pc01_state_id, data = .) %>%
     summary()
 ```
 
-The number of candidates is already quite high, with a median above 10, but since most of candidates are not competitive, this is showing us that since there is already a sink for protest votes, protest candidates, rarely, if at all run for election now that NOTA is an option.
-
-So what we can reasonably conclude from this is while NOTA does not seem to have an impact on the margin of victory or turnout, it does seem to "replace" some potentially protest candidates as an option.
+So what we can reasonably conclude from this is that NOTA does not seem to have an impact on the margin of victory turnout, or on the number of candidates.
 
 We have to keep in mind that the existence of NOTA is also a proxy for post-2013 in India, and this could also be an example of Duverge's law in practice, such that there is a general decrease in the number of candidates as campaigns are more professionally run, and there are more pre-poll alliances between parties, leading to a decrease in the number of candidates competing.
 
@@ -294,6 +294,7 @@ Let's look at the criminality of candidates next.
 ```{r}
 adr_cand %>%
     filter(!is.na(adr_cand_id)) %>%
+    filter(nota_cand == 0) %>%
     group_by(year) %>%
     summarise(
         mean_crimes = mean(num_crim, na.rm = T),
@@ -310,6 +311,7 @@ While the median candidate is not a criminal, we can see that the mean candidate
 ```{r}
 adr_cand %>%
     filter(!is.na(adr_cand_id)) %>%
+    filter(nota_cand == 0) %>%
     group_by(sh_election_id) %>%
     summarise(
         mean_crimes = mean(num_crim, na.rm = T),
@@ -319,15 +321,17 @@ adr_cand %>%
         perc_crime_major_adr = mean(crime_major_adr, na.rm = T)
     ) %>%
     summarise(
-        median(mean_crimes, na.rm = TRUE),
-        median(median_crimes, na.rm = TRUE)
+        median_mean_crimes = median(mean_crimes, na.rm = TRUE),
+        median_median_crimes = median(median_crimes, na.rm = TRUE)
     )
 ```
 
-The mean election candidate has 0.2 crimes. 
+The mean election candidate has ~0.2 crimes. 
 
 ```{r}
 adr_cand %>%
+    filter(!is.na(adr_cand_id)) %>%
+    filter(nota_cand == 0) %>%
     group_by(sh_election_id, pc01_state_id, ac_id) %>%
     summarise(
         num_criminals = sum(num_crim > 0, na.rm = TRUE),
@@ -336,26 +340,21 @@ adr_cand %>%
     ) %>%
     ungroup() %>%
     inner_join(election_is_nota) %>%
+    inner_join(shrug_triv_elect) %>%
     filter(year >= 2004) %>%
-    mutate(year_2013 = year - 2013) %>%
-    feols(fml = num_criminals ~ is_nota * year_2013 | pc01_state_id + ac_id, cluster = ~ pc01_state_id + ac_id, data = .) %>%
+    mutate(
+        year_2013 = year - 2013,
+        crim_prop = 100 * (num_criminals / n_cand)
+    ) %>%
+    feols(fml = num_criminals ~ is_nota * year_2013 | pc01_state_id, cluster = ~pc01_state_id, data = .) %>%
     summary()
 ```
 
-NOTA has not had an impact on the number of criminal candidates running in elections, which is interesting in the context of the absolute number of candidates dropping off, but criminals still seem to have a shot!
-
-```{r}
-adr_cand %>%
-    group_by(sh_election_id, pc01_state_id, ac_id) %>%
-    inner_join(election_is_nota) %>%
-    filter(year >= 2004) %>%
-    mutate(year_2013 = year - 2013) %>%
-    feols(fml = vote_share_percentage ~ is_nota * year_2013 * crime_major | pc01_state_id + ac_id, cluster = ~ pc01_state_id + ac_id, data = .) %>%
-    summary()
-```
+While NOTA has not had an impact on the number of  candidates running in elections, there had been a generally modest increase in the number of criminal candidates every year, that seems to have stopped with NOTA. Moreover, there seems to also have been a slight drop in the number of criminal candidates at the advent of NOTA being introduced.
 
 ```{r}
 adr_election_crim <- adr_cand %>%
+    filter(!is.na(adr_cand_id)) %>%
     group_by(sh_election_id, pc01_state_id, ac_id, year) %>%
     summarise(
         num_criminals = sum(num_crim > 0, na.rm = TRUE),
@@ -365,15 +364,18 @@ adr_election_crim <- adr_cand %>%
     ungroup() %>%
     inner_join(election_nota_votes) %>%
     mutate(nota_vote_share = nota_vote_share * 100) %>%
+    inner_join(shrug_triv_elect) %>%
     filter(year >= 2004) %>%
-    mutate(year_2013 = year - 2013)
+    mutate(
+        year_2013 = year - 2013,
+        crim_prop = 100 * (num_criminals / n_cand)
+    )
 
-feols(fml = nota_vote_share ~ num_criminals * year_2013 | pc01_state_id + ac_id, cluster = ~ pc01_state_id + ac_id, data = adr_election_crim) %>%
+feols(fml = nota_vote_share ~ crim_prop * year_2013 | pc01_state_id, cluster = ~pc01_state_id, data = adr_election_crim) %>%
     summary()
 ```
 
-The more criminal candidates there are, the fewer NOTA votes we have?
-
+There also seems to have been a slight drop in NOTA vote share since the introduction of NOTA, in that when people were at their most politically engaged, they utilised NOTA more, but there seems to be no effect of criminality on NOTA vote share.
 
 However, the wealth characteristics of a candidate (income, assets, liabilites, cash on hand) do not have correlation with how many NOTA votes an election gets.
 
@@ -411,9 +413,10 @@ feols(fml = nota_vote_share ~ log_median_liabilities * year_2013 | pc01_state_id
     summary()
 ```
 
+
+----END----
+
 NOTE: The rest is still WIP
-
-
 
 However, if elections are close, people seem to be voting for NOT nota so the election has more win margin(??)
 
