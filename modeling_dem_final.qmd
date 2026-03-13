@@ -1,0 +1,479 @@
+---
+title: Final Project for Modeling Democracy
+authors: Moksha Sharma, Divij Sinha
+format: html
+bibliography: references.bib
+execute:
+  cache: true
+echo: false
+message: false
+warning: false
+---
+
+## Introduction
+
+Voting is costly: eligible voters need to collect information on candidates, formulate their preferences, and find the time to express these preferences at the ballot. Given these costs, political scientists have offered many explanations for why citizens make the effort to vote despite their very low probability of casting the pivotal vote. Yet what remains largely unexplained is why voters would show up at the polls only to vote for no one.
+
+Many jurisdictions offer voters the option of formalising their discontentment with existing candidates by voting for none of them. This option to vote for “none of the above” (NOTA) or to cast a blank vote was introduced in India in 2013 in order by the Supreme Court. The stated goal of this policy was to boost turnout and convey to political parties which candidates they should not field in elections again. In fact, the Supreme Court specifically argued that NOTA would give voters a proper mechanism for punishing candidates who are known to be associated with criminality.
+
+However, despite these lofty aims, NOTA carries no bite in its implementation in India. While NOTA votes are counted and reported, they are essentially treated as invalid votes. The winning candidate is whomever gets the plurality of the remaining votes. While some countries require a bi-election to be conducted if the NOTA vote-share exceeds a certain threshold, there are no such requirements in India. Similarly, political parties are not required to ban candidates if, for instance, they win by a margin that is narrower than the share of NOTA votes. Thus, NOTA remains largely toothless and is little more than a costly signaling mechanism for casting protest votes.
+
+Given this setup, to what extent has NOTA been successful in giving voters an opportunity to not vote for criminal candidates? On the one hand, the presence of criminals in any political office is likely to create obvious problems for quality political representation. On the other hand, as political scientist Milan Vaishnav explains in the context of India, criminal associations can signal to the voter that the candidate can “get things done”. Thus, even if voters may have the option to express discontentment with criminal candidates, how inclined are voters to use it?
+
+This paper seeks to answer this question using electoral data on state elections from India. 
+
+## Literature Review
+
+In the
+
+## Formal Model
+
+We consider a simple decision model to show when a voter will be inclined to cast a NOTA vote, even when they know that the party will have no formal incentive to change the candidate. In this simplified model, the Voter ($V$) can choose to either vote for their preferred candidate, choose NOTA, or abstain. The Voter's action set is thus $\{C,N,A\}$.
+
+Let the policy benefit that the Voter gets from electing their preferred candidate be $\beta$. Formalising policy payoff in this way departs from the conventional technique for doing so, which represents it as the negative of the Euclidean distance between the voter's ideal point and the candidate's ideal point. The two techniques can be reconciled if we normalise the payoff from the opposing candidate as $0$ and think of $\beta>0$ as the policy gain from electing one's preferred candidate.
+
+We now characterise the probabilities that $V$ assigns to their preferred candidate winning based on whether they vote for them or not. Let $\pi_V$ be the probability that the preferred candidate wins if $V$ votes for them and $\pi_0$ be the probability that they win if $V$ does not vote for them. The difference $\pi_v-\pi_0$ is the probability that $V$ is pivotal.
+
+Finally, we characterise $c>0$ as the cost of voting net of the psychological gain from fulfilling one's civic duty and $\alpha>0$ as the benefit of expressing discontentment to the candidates from voting for no one.
+
+Thus, we get the following expected payoffs for the voter from their three possible strategies:
+
+$$
+u_i(C) = \pi_V\beta - c \\
+u_i(N) = \pi_0\beta +\alpha - c \\
+u_i(C) = \pi_0\beta \\
+$$
+
+For $V$ to choose NOTA, the following must hold:
+
+$$
+\alpha > c \\
+\alpha > (\pi_V -\pi_0)\beta
+$$
+
+From these conditions, we conclude the following:
+
+-   As $(\pi_V-\pi_0) \rightarrow0$, the Voter feels more confident about their preferred candidate winning the election, and the threshold for casting NOTA lowers. In other words, if the Voter believes that the election is going to be won by their preferred candidate even without their vote, then they can afford to "waste" their vote by casting NOTA instead and enjoy expressive benefits instead. Thus, competitive constituencies might see more usage of NOTA.
+
+-   As $\beta \rightarrow 0$, the Voter is more and more indifferent to the competing candidates i.e. the candidates are largely undifferentiated to the Voter. Thus, the policy lost that they expect from not electing their preferred candidate is lower, which means that they are more inclined to vote NOTA.
+
+## Analysis
+
+```{r setup}
+#| warning: false
+#| output: false
+library(tidyverse)
+library(fixest)
+shrug_triv_elect <- read_csv("data/shrug-triv-elect-csv/trivedi_elections_clean.csv")
+shrug_triv_cand <- read_csv("data/shrug-triv-cand-csv/trivedi_candidates_clean.csv")
+shrug_adr_elect <- read_csv("data/shrug-adr-elections-ac-csv/affidavits_ac.csv")
+shrug_adr_cand <- read_csv("data/shrug-adr-elections-cand-csv/affidavits_clean.csv")
+```
+
+`shrug_triv_elect` -\> Election level with winner info. Each row is one election (one state-year-seat)\
+`shrug_triv_cand` -\> Candidate level with candidate info. Each row is one election candidate (one state-year-seat-candidate)\
+`shrug_adr_elect` -\> Election level with avg affidavit info. Each row is one election (one state-year-seat)\
+`shrug_adr_cand` -\> Candidate level with candidate affidavit info. Each row is one candidate (one state-year-seat-candidate)
+
+## Basic Data Landscape
+
+### Elections
+
+We have access to state election level data for election results and candidate level affidavits.
+
+We first start by looking at the election level data. These include elections from 1979 to 2022. <!-- 
+```{r}
+#| results: hold
+print(nrow(shrug_triv_elect)) ## Total Elections in election data
+print(nrow(shrug_triv_cand %>% select(sh_election_id) %>% unique())) ## Total Elections in candidate data
+```
+
+```{r}
+#| results: hold
+print(nrow(shrug_triv_elect %>% filter(bye_election == 0))) ## Total Elections in election data
+print(nrow(shrug_triv_cand %>% filter(bye_election == 0) %>% select(sh_election_id) %>% unique())) ## Total Elections in candidate data
+``` 
+-->
+
+Here, we have a total of \~43,000 elections, which upon filtering to remove bye-poll elections leaves us with \~41,600 elections.
+
+We remove bye-polls because they usually have different, smaller sets of candidates and campaigns, and have no compulsion to have "None of the Above" as an option.
+
+```{r}
+election_is_nota <- shrug_triv_cand %>%
+    filter(bye_election == 0) %>%
+    group_by(sh_election_id, year) %>%
+    summarise(is_nota = any(tolower(cand_name) == "nota" | tolower(cand_name) == "none of the above"), .groups = "drop")
+
+election_is_nota %>%
+    group_by(year) %>%
+    summarise(
+        perc_nota_elections = mean(is_nota),
+        count_nota_elections = sum(is_nota),
+        count_total_elections = n(),
+    ) %>%
+    ggplot(data = .) +
+    geom_col(aes(x = year, y = count_total_elections, fill = "Total elections")) +
+    geom_col(aes(x = year, y = count_nota_elections, fill ="Elections with NOTA")) + 
+    theme_minimal()
+```
+
+Within these, as we can see, the elections with NOTA as an option start happening in 2013, and barring one bad data point, exist in every election since.
+
+### Affidavits
+
+````{=html}
+<!-- 
+```{r}
+#| results: hold
+print(nrow(shrug_adr_elect)) ## Total Elections in affidavit data
+print(nrow(shrug_adr_cand %>% select(sh_election_id) %>% unique())) ## Total Elections in affidavit election data
+```
+
+```{r}
+#| results: hold
+print(nrow(shrug_adr_elect %>% filter(bye_election == 0))) ## Total Elections in affidavit data
+print(nrow(shrug_adr_cand %>% filter(bye_election == 0) %>% select(sh_election_id) %>% unique())) ## Total Elections in affidavit election data
+``` 
+-->
+````
+
+Now, looking at the affidavit level data, we have information on affidavits from 2004 to 2017. While this limits the election data we are able to use, as we can see, it still gives us about 11,000 elections we can still analyse.
+
+**Merging election level affidavit data**
+
+```{r}
+#| results: hold
+adr_elect <- inner_join(shrug_adr_elect, shrug_triv_elect) %>% inner_join(election_is_nota)
+
+adr_elect %>%
+    group_by(year) %>%
+    summarise(
+        perc_nota_elections = mean(is_nota),
+        count_nota_elections = sum(is_nota),
+        count_total_elections = n(),
+    ) %>%
+    ggplot(data = .) +
+    geom_col(aes(x = year, y = count_total_elections, fill = "Total elections")) +
+    geom_col(aes(x = year, y = count_nota_elections, fill = "Elections with NOTA")) +
+    theme_minimal()
+```
+
+```{r}
+adr_elect %>% group_by(is_nota) %>% summarise(n = n())
+```
+
+```{r}
+adr_cand <- left_join(shrug_triv_cand, shrug_adr_cand, by = join_by("sh_cand_id", "sh_election_id"), suffix = c("", "_adr"), ) %>%
+    inner_join(election_is_nota)
+```
+
+## Estimations
+
+**Average NOTA share by state-year**
+
+```{r}
+adr_cand <- adr_cand %>%
+    mutate(nota_cand = ifelse(tolower(cand_name) %in% c("nota", "none of the above"), 1, 0))
+
+adr_cand %>%
+    filter(nota_cand == 1) %>%
+    group_by(eci_state_name, year) %>%
+    summarise(
+        median_vsp = median(vote_share_percentage),
+        mean_vsp = mean(vote_share_percentage),
+    ) %>%
+    print(n = 40)
+
+adr_cand %>%
+    mutate(year = as.factor(year)) %>%
+    filter(nota_cand == 1) %>%
+    ggplot(data = .) +
+    geom_density(aes(x = vote_share_percentage, fill = eci_state_name, alpha = 0.05))
+```
+
+At the state level, we can see that average percentage of votes polled as NOTA hoever around 1%, with interesting outliers in the case of the states of Bihar and Chhattisgarh - both poorer states with a (at least perceived) higher degree of corruption and maladministration.
+
+```{r}
+#| warning: false
+election_nota_votes <- adr_cand %>%
+    filter(nota_cand == 1) %>%
+    mutate(
+        nota_votes = votes,
+        nota_vote_share = votes / valid_votes
+    ) %>%
+    select(sh_election_id, nota_votes, nota_vote_share, valid_votes)
+
+ggplot(data = election_nota_votes, aes(x = nota_vote_share * 100)) +
+    geom_density() +
+    geom_vline(xintercept = 1, color = "red") +
+    geom_vline(xintercept = 2, color = "red") +
+    annotate("text", x = 1.1, y = 1, label = "1%", size = 3) +
+    annotate("text", x = 2.1, y = 1, label = "2%", size = 3) +
+    labs(
+        x = "NOTA vote share (%)",
+        y = "Density",
+        title = "Distribution of NOTA vote share across elections"
+    ) +
+    theme_minimal()
+```
+
+**Constituency-year with NOTA votes higher than winning margin**
+
+```{r}
+
+win_margin <- adr_cand %>%
+    arrange(sh_election_id, desc(votes)) %>%
+    group_by(sh_election_id) %>%
+    mutate(
+        win_margin = max(votes) - votes,
+        win_margin_perc = 100 * (win_margin / valid_votes)
+    ) %>%
+    filter(win_margin != 0) %>%
+    group_by(sh_election_id) %>%
+    summarise(
+        win_margin = min(win_margin),
+        win_margin_perc = min(win_margin_perc)
+    )
+
+nota_margin <- win_margin %>%
+    inner_join(election_nota_votes) %>%
+    mutate(diff_votes = win_margin - nota_votes) %>%
+    arrange(diff_votes)
+
+nota_margin %>% filter(diff_votes <= 0) %>% print()
+
+ggplot(data = nota_margin %>% filter(diff_votes < 50000)) +
+    geom_histogram(aes(x = diff_votes, fill = (diff_votes > 0)), binwidth = 500)
+```
+
+Surprisingly, of the 7,544 elections that have NOTA as an option, 474 or over 6% of the elections have a margin of victory that is less than the NOTA votes polled!
+
+This points to the fact that some of these elections could actually be quite sensitive to the NOTA vote.
+
+The NOTA vote represents something unique, it is someone taking the effort to the voting booth, stand in line for potentially hours, and then in some sense reveal a preference in a manner that is not really "relevant" to the election result. It is a costly signal with little to no benefit.
+
+Let's now look at turnout trends, and vote-margins, pre and post NOTA
+
+```{r}
+shrug_triv_elect %>%
+    filter(year >= 2004) %>%
+    inner_join(election_is_nota) %>%
+    feols(fml = turnout_percentage ~ is_nota | year + pc01_state_id + tr_ac_id, data = .) %>%
+    summary()
+```
+
+As we can see, NOTA seems to have a weak impact on turnout trends, looking at the 10 year window before and after the introduction of the change!
+
+```{r}
+shrug_triv_elect %>%
+    filter(year >= 2004) %>%
+    inner_join(election_is_nota) %>%
+    inner_join(win_margin) %>%
+    feols(fml = win_margin_perc ~ is_nota | year + pc01_state_id + tr_ac_id, data = .) %>%
+    summary()
+```
+
+However, NOTA does not seem to impact the average win margin. The same seems to hold true even when we look at elections with narrower win margins (1% or less)
+
+```{r}
+shrug_triv_elect %>%
+    filter(year >= 2004) %>%
+    inner_join(election_is_nota) %>%
+    inner_join(win_margin) %>%
+    filter(win_margin_perc <= 1) %>%
+feols(fml = win_margin_perc ~ is_nota | year + pc01_state_id + tr_ac_id, data = .) %>%
+    summary()
+```
+
+More importantly, it seems to reduce the average number of candidates in the election by 2!
+
+```{r}
+shrug_triv_elect %>%
+    filter(year >= 2004) %>%
+    inner_join(election_is_nota) %>%
+    feols(fml = n_cand ~ is_nota | year + pc01_state_id + tr_ac_id, data = .) %>%
+    summary()
+```
+
+The number of candidates is already quite high, with a median above 10, but since most of candidates are not competitive, this is showing us that since there is already a sink for protest votes, protest candidates, rarely, if at all run for election now that NOTA is an option.
+
+So what we can reasonably conclude from this is while NOTA does not seem to have an impact on the margin of victory or turnout, it does seem to "replace" some potentially protest candidates as an option.
+
+We have to keep in mind that the existence of NOTA is also a proxy for post-2013 in India, and this could also be an example of Duverge's law in practice, such that there is a general decrease in the number of candidates as campaigns are more professionally run, and there are more pre-poll alliances between parties, leading to a decrease in the number of candidates competing.
+
+Let's look at the criminality of candidates next.
+
+```{r}
+adr_cand %>%
+    filter(!is.na(adr_cand_id)) %>%
+    group_by(year) %>%
+    summarise(
+        mean_crimes = mean(num_crim, na.rm = T),
+        median_crimes = median(num_crim, na.rm = T),
+        max_crimes = max(num_crim, na.rm = T),
+        perc_crime_major = mean(crime_major, na.rm = T),
+        perc_crime_major_adr = mean(crime_major_adr, na.rm = T)
+    ) %>%
+    round(2)
+```
+
+While the median candidate is not a criminal, we can see that the mean candidate is almost one, pulled up quite high by some "prolific" criminals.
+
+```{r}
+adr_cand %>%
+    filter(!is.na(adr_cand_id)) %>%
+    group_by(sh_election_id) %>%
+    summarise(
+        mean_crimes = mean(num_crim, na.rm = T),
+        median_crimes = median(num_crim, na.rm = T),
+        max_crimes = max(num_crim, na.rm = T),
+        perc_crime_major = mean(crime_major, na.rm = T),
+        perc_crime_major_adr = mean(crime_major_adr, na.rm = T)
+    ) %>%
+    summarise(
+        median(mean_crimes, na.rm = TRUE),
+        median(median_crimes, na.rm = TRUE)
+    )
+```
+
+The mean election candidate has 0.2 crimes.
+
+```{r}
+adr_cand %>%
+    group_by(sh_election_id, pc01_state_id, tr_ac_id) %>%
+    summarise(
+        num_criminals = sum(num_crim > 0, na.rm = TRUE),
+        median_num_crim = median(num_crim, na.rm = TRUE),
+        mean_num_crim = mean(num_crim, na.rm = TRUE)
+    ) %>%
+    ungroup() %>%
+    inner_join(election_is_nota) %>%
+    filter(year >= 2004) %>%
+feols(fml = num_criminals ~ is_nota | year + pc01_state_id + tr_ac_id, data = .) %>%
+    summary()
+```
+
+NOTA has not had an impact on the number of criminal candidates running in elections, which is interesting in the context of the absolute number of candidates dropping off, but criminals still seem to have a shot!
+
+```{r}
+adr_cand %>%
+    group_by(sh_election_id, pc01_state_id, tr_ac_id) %>%
+    inner_join(election_is_nota) %>%
+    filter(year >= 2004) %>%
+    feols(fml = vote_share_percentage ~ is_nota * crime_major | year + pc01_state_id + tr_ac_id, data = .) %>%
+    summary()
+```
+
+NOTE: The rest is still WIP
+
+However, if elections are close, people seem to be voting for NOT nota so the election has more win margin(??)
+
+````{=html}
+<!-- 
+**Distribution of NOTA vote share**
+
+```{r}
+ggplot(data = nota_margin, aes(x = nota_vote_share * 100)) +
+    geom_density(fill = "steelblue", alpha = 0.4, color = "steelblue4") +
+    geom_vline(xintercept = 1, linetype = "dashed", color = "firebrick", linewidth = 0.7) +
+    geom_vline(xintercept = 2, linetype = "dotted", color = "firebrick", linewidth = 0.7) +
+    annotate("text", x = 1.1, y = Inf, label = "1%", vjust = 2, hjust = 0, color = "firebrick", size = 3) +
+    annotate("text", x = 2.1, y = Inf, label = "2%", vjust = 2, hjust = 0, color = "firebrick", size = 3) +
+    labs(
+        x = "NOTA vote share (%)",
+        y = "Density",
+        title = "Distribution of NOTA vote share across elections"
+    ) +
+    theme_minimal()
+```
+
+The distribution is heavily right-skewed: the vast majority of elections see NOTA below 2%, but a non-trivial tail extends beyond that. The 1% and 2% reference lines put the "spoiler zone" in context — the elections flagged above as margin < NOTA votes live in this right tail.
+-->
+````
+
+````{=html}
+<!-- **NOTA vote share vs. winning margin**
+
+```{r}
+nota_margin_plot <- nota_margin %>%
+    mutate(
+        nota_vote_share_perc = nota_vote_share * 100,
+        spoiler = diff_votes <= 0
+    )
+
+ggplot(data = nota_margin_plot, aes(x = nota_vote_share_perc, y = win_margin_perc, color = spoiler)) +
+    geom_point(alpha = 0.3, size = 0.8) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black", linewidth = 0.8) +
+    scale_color_manual(
+        values = c("FALSE" = "steelblue", "TRUE" = "firebrick"),
+        labels = c("FALSE" = "Margin > NOTA", "TRUE" = "Margin ≤ NOTA"),
+        name = NULL
+    ) +
+    coord_cartesian(xlim = c(0, 8), ylim = c(0, 20)) +
+    labs(
+        x = "NOTA vote share (%)",
+        y = "Win margin (% of valid votes)",
+        title = "NOTA vote share vs. winning margin",
+        subtitle = "Elections below the diagonal line have margin ≤ NOTA votes"
+    ) +
+    theme_minimal() +
+    theme(legend.position = "bottom")
+```
+
+Elections in red fall below the diagonal — their margin of victory was smaller than the NOTA vote. These are the elections where NOTA was structurally decisive, even though it mechanically could not affect the outcome. The clustering of most elections well above the diagonal confirms that this is a tail phenomenon, but the red points establish that it is not negligible.
+ -->
+````
+
+## Other tables
+
+Criminal affidavits per const
+
+```{r}
+
+
+cm_nota <- election_crim %>%
+    group_by(median_num_crim) %>%
+    summarise(
+        median_nota_vote_share = median(nota_vote_share, na.rm = TRUE),
+        mean_nota_vote_share = mean(nota_vote_share, na.rm = TRUE)
+    )
+
+
+ggplot(data = cm_nota) +
+    geom_col(aes(x = median_num_crim, y = median_nota_vote_share))
+```
+
+```{r}
+major_crim <- adr_cand %>%
+    filter(is_nota == 1) %>%
+    group_by(sh_election_id) %>%
+    summarise(
+        crime_major = sum(crime_major_adr, na.rm = TRUE),
+    ) %>%
+    inner_join(election_nota_votes)
+
+
+cm_nota <- major_crim %>%
+    group_by(crime_major) %>%
+    summarise(
+        median_nota_vote_share = median(nota_vote_share, na.rm = TRUE),
+        mean_nota_vote_share = mean(nota_vote_share, na.rm = TRUE)
+    )
+
+
+ggplot(data = cm_nota) +
+    geom_col(aes(x = crime_major, y = median_nota_vote_share))
+```
+
+# Data
+
+The data for this project comes from the following sources:
+
+-   PC and AC election results sourced from Lok Dhaba, TCPD, Ashoka University (@agarwal2021tcpd)
+-   Candidate affidavit data sourced from [myneta.info](myneta.info) by the Association for Democratic Reforms (ADR)
+
+# References
+
+::: {#refs .references}
+:::
