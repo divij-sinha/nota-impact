@@ -1,7 +1,7 @@
 ---
 title: Final Project for Modeling Democracy
 authors: Moksha Sharma, Divij Sinha
-format: html
+format: pdf
 #bibliography: references.bib
 execute:
   cache: true
@@ -16,9 +16,9 @@ Voting is costly: eligible voters need to collect information on candidates, for
 
 This project focuses on the latter motivation for voting in India, and specifically for voting for no one. Many jurisdictions offer voters the option of formally expressing their discontentment with existing candidates by voting for none of them. This option to vote for “none of the above” (NOTA) was introduced in India in 2013 in an order of the Supreme Court. The stated goal of this policy was to boost turnout and convey to political parties which candidates they should not field in elections again (BBC 2013). In fact, the Supreme Court specifically argued that NOTA would give voters a proper mechanism for punishing candidates who are known to be associated with criminality (Goel 2018).
 
-However, despite these lofty aims, NOTA carries no bite in its implementation in India (Association for Democratic Reforms 2024). While NOTA votes are counted and reported, they are essentially treated as invalid votes. The winning candidate is whomever gets the plurality of the remaining votes. While some countries require a bi-election to be conducted if the NOTA vote-share exceeds a certain threshold, there are no such requirements in India. Similarly, political parties are not required to ban candidates if, for instance, they win by a margin that is narrower than the share of NOTA votes. Thus, NOTA remains largely toothless and is little more than a costly signaling mechanism for casting protest votes.
+However, despite these lofty aims, NOTA carries no bite in its implementation in India (Association for Democratic Reforms 2024). While NOTA votes are counted and reported, they are essentially treated as invalid votes. The winning candidate is whomever gets the plurality of the remaining votes. While some countries require a bi-election to be conducted if the NOTA vote-share exceeds a certain threshold, there are no such requirements in India. Similarly, political parties are not required to not field the same candidates if, for instance, they achieve fewer votes than the share of NOTA votes. Thus, NOTA remains largely toothless and is little more than a costly signaling mechanism for casting protest votes.
 
-Given this setup, this project seeks to look into the various ways NOTA has affected electoral outcomes in India. Descriptive work and existing research so far have generated various conflicting results. While Goel (2018) found no relationship between NOTA use and urban and literacy rates, increasing turnouts, or criminality in elections, Kailthya and Le (2025) found that NOTA was correlated with increased nighttime luminosity, which they considered to be a measure of democratic accountability. Using structural estimation, Ujhelyi, Chatterjee, and Szabo (2020) also argued that NOTA can improve political participation, albeit through a different mechanism, which is increasing turnout from voters who would have otherwise abstained.
+Given this setup, this project seeks to look into the various ways NOTA has affected electoral outcomes in India. Descriptive work and existing research so far have generated various conflicting results. While Goel (2018) found no relationship between NOTA use and literacy rates, increasing turnouts, or criminality in elections, Kailthya and Le (2025) found that NOTA was correlated with increased nighttime luminosity, which they considered to be a measure of democratic accountability. Using structural estimation, Ujhelyi, Chatterjee, and Szabo (2020) also argued that NOTA can improve political participation, albeit through a different mechanism, which is increasing turnout from voters who would have otherwise abstained.
 
 To contribute to this growing literature, we use data from state legislature elections in India alongside data on criminal affidavits against political candidates. Using these data sources, we investigate the following questions regarding the usage of NOTA:
 
@@ -113,9 +113,10 @@ print(nrow(shrug_triv_cand %>% filter(bye_election == 0) %>% select(sh_election_
 
 We start with a total of more than 43,000 elections. After filtering to remove bye-poll elections, we are left with approximately 41,600 elections[^1]. The plot below shows that after NOTA was introduced by the Supreme Court's order in 2013, every election has offered it to voters.
 
-[^1]: We removed bye-polls because they the set of candidates varies and tends to be smaller, the electoral campaigns more limited, and no legal requirement for the voter to choose NOTA at the polls.
+[^1]: We removed bye-polls because there is no legal requirement for NOTA to be a candidate option. The set of candidates also varies and tends to be smaller, and the electoral campaigns more limited.
 
 ```{r}
+#| fig-cap: Elections in the Dataset Before and After NOTA
 election_is_nota <- shrug_triv_cand %>%
     filter(bye_election == 0) %>%
     group_by(sh_election_id, year) %>%
@@ -130,37 +131,36 @@ election_is_nota %>%
     ) %>%
     ggplot(data = .) +
     geom_col(aes(x = year, y = count_total_elections, fill = "Total elections")) +
-    geom_col(aes(x = year, y = count_nota_elections, fill ="Elections with NOTA")) + 
-    theme_minimal()+
+    geom_col(aes(x = year, y = count_nota_elections, fill = "Elections with NOTA")) +
+    theme_minimal() +
     labs(
         y = "Number of Elections",
-        x = "Year",
-        title = " Figure 1: Elections in the Dataset Before and After NOTA"
+        x = "Year"
     )
 ```
 
 ## II. Merging with Criminal Affidavits Data
 
-````{=html}
 <!-- 
 ```{r}
 #| results: hold
 print(nrow(shrug_adr_elect)) ## Total Elections in affidavit data
 print(nrow(shrug_adr_cand %>% select(sh_election_id) %>% unique())) ## Total Elections in affidavit election data
 ```
-
+-->
+<!-- 
 ```{r}
 #| results: hold
 print(nrow(shrug_adr_elect %>% filter(bye_election == 0))) ## Total Elections in affidavit data
 print(nrow(shrug_adr_cand %>% filter(bye_election == 0) %>% select(sh_election_id) %>% unique())) ## Total Elections in affidavit election data
 ``` 
 -->
-````
 
-Now, looking at the affidavit level data, we have information on criminal affidavits from 2004 to 2017. This time-frame is shorter than the period over which we have electoral data, but we are still left with approximately 11,000 elections to analyse. Out of these elections, 6775 are pre-NOTA and 3346 are from after are it was introduced.
+Now, looking at the affidavit level data, we have information on criminal affidavits from 2004 to 2017. This time-frame is shorter than the period over which we have electoral data, but we are still left with approximately 11,000 elections to analyse. Out of these elections, 6,775 are pre-NOTA and 3,346 are from after are it was introduced.
 
 ```{r}
 #| results: hold
+#| fig-cap: Elections Data Merged with Criminal Affidavits Data
 adr_elect <- inner_join(shrug_adr_elect, shrug_triv_elect) %>% inner_join(election_is_nota)
 
 adr_elect %>%
@@ -173,11 +173,10 @@ adr_elect %>%
     ggplot(data = .) +
     geom_col(aes(x = year, y = count_total_elections, fill = "Total elections")) +
     geom_col(aes(x = year, y = count_nota_elections, fill = "Elections with NOTA")) +
-    theme_minimal()+
+    theme_minimal() +
     labs(
         y = "Number of Elections",
-        x = "Year",
-        title = "Figure 2: Elections Data Merged with Criminal Affidavits Data"
+        x = "Year"
     )
 ```
 
@@ -199,8 +198,9 @@ For this section of the analysis, we use the cleaned dataset on elections (and n
 Figures 3 and 4 show the average share of NOTA ballots that were cast in each state over the course of the various elections in the dataset. We observe that on average, approximately 1% of votes were cast as NOTA. The two notable outliers are the states of Chhattisgarh and Bihar, which are both rural states with low literacy rates. The relatively higher frequency of NOTA use in these states has been covered by journalists, who in some cases have attributed it to "mistakes made by the voters due to low awareness" (Kumar 2014). In the case of Chhattisgarh, journalists have also written about Maoist groups encouraging voters to cast NOTA (Rai 2014).
 
 ```{r}
+#| fig-cap: Vote Share of NOTA by State
 adr_cand <- adr_cand %>%
-    mutate(nota_cand = ifelse(tolower(cand_name) %in% c("nota", "none of the above"), 1, 0)) 
+    mutate(nota_cand = ifelse(tolower(cand_name) %in% c("nota", "none of the above"), 1, 0))
 
 adr_cand %>%
     filter(nota_cand == 1) %>%
@@ -209,7 +209,7 @@ adr_cand %>%
         median_vsp = median(vote_share_percentage),
         mean_vsp = mean(vote_share_percentage),
     ) %>%
-  invisible()
+    invisible()
 
 adr_cand %>%
     mutate(year = as.factor(year)) %>%
@@ -217,19 +217,19 @@ adr_cand %>%
     ggplot(data = .) +
     geom_density(aes(x = vote_share_percentage, fill = eci_state_name, alpha = 0.05)) +
     theme_minimal() +
-    guides(alpha = "none")+
+    guides(alpha = "none") +
     labs(
         y = "Density",
         x = "NOTA Vote Share %",
         fill = "State",
-        title = "Figure 3: Vote Share of NOTA by State"
-    ) 
+    )
 
-#plot1 <- last_plot()
+# plot1 <- last_plot()
 ```
 
 ```{r}
 #| warning: false
+#| fig-cap: Distribution of NOTA vote share across elections
 election_nota_votes <- adr_cand %>%
     filter(nota_cand == 1) %>%
     mutate(
@@ -238,8 +238,8 @@ election_nota_votes <- adr_cand %>%
     ) %>%
     select(sh_election_id, nota_votes, nota_vote_share, valid_votes)
 
-#plot2 <- 
-  ggplot(data = election_nota_votes, aes(x = nota_vote_share * 100)) +
+# plot2 <-
+ggplot(data = election_nota_votes, aes(x = nota_vote_share * 100)) +
     geom_density() +
     geom_vline(xintercept = 1, color = "red") +
     geom_vline(xintercept = 2, color = "red") +
@@ -247,8 +247,7 @@ election_nota_votes <- adr_cand %>%
     annotate("text", x = 2.1, y = 1, label = "2%", size = 3) +
     labs(
         x = "NOTA vote share (%)",
-        y = "Density",
-        title = "Figure 4: Distribution of NOTA vote share across elections"
+        y = "Density"
     ) +
     theme_minimal()
 ```
@@ -259,9 +258,10 @@ election_nota_votes <- adr_cand %>%
 
 ## **II. NOTA vs Margin of Victory**
 
-Of the 7544 elections in the elections dataset that have NOTA as an option, 474 (or over 6%) have a margin of victory that is lower than the NOTA vote share. On the one hand, we could infer from this finding that the outcome of the election was sensitive to the NOTA vote share. On the other hand, based on Ujhelyi, Chatterjee, and Szabo (2020), this NOTA vote share may not be cutting into the vote share of the other candidates, and instead it may be representing the share of voters who would have otherwise abstained.
+Of the 7,544 elections in the elections dataset that have NOTA as an option, 474 (or over 6%) have a margin of victory that is lower than the NOTA vote share. On the one hand, we could infer from this finding that the outcome of the election was sensitive to the NOTA vote share. On the other hand, based on Ujhelyi, Chatterjee, and Szabo (2020), this NOTA vote share may not be cutting into the vote share of the other candidates, and instead it may be representing the share of voters who would have otherwise abstained.
 
 ```{r}
+#| fig-cap: NOTA vs Margin of Victory
 win_margin <- adr_cand %>%
     arrange(sh_election_id, desc(votes)) %>%
     group_by(sh_election_id) %>%
@@ -281,14 +281,17 @@ nota_margin <- win_margin %>%
     mutate(diff_votes = win_margin - nota_votes) %>%
     arrange(diff_votes)
 
-nota_margin %>% filter(diff_votes <= 0) %>% invisible()
+nota_margin %>%
+    filter(diff_votes <= 0) %>%
+    invisible()
 
 ggplot(data = nota_margin %>% filter(diff_votes < 50000)) +
     geom_histogram(aes(x = diff_votes, fill = (diff_votes > 0)), binwidth = 500) +
-  theme_minimal()+
-  labs(x= "Difference between Margin of Victory and NOTA Vote Share",
-       y="Number of Elections",
-       title= "Figure 5: NOTA vs Margin of Victory")
+    theme_minimal() +
+    labs(
+        x = "Difference between Margin of Victory and NOTA Vote Share",
+        y = "Number of Elections"
+    )
 ```
 
 ## III. NOTA and Voter Turnout
