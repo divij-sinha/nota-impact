@@ -4,7 +4,7 @@ authors: Moksha Sharma, Divij Sinha
 format: pdf
 bibliography: references.bib
 execute:
-  cache: true
+  cache: false
 echo: false
 message: false
 warning: false
@@ -50,7 +50,7 @@ $$
 \begin{aligned}
 u_i(C) &= \pi_v\beta - c \\
 u_i(N) &= \pi_0\beta +\alpha - c \\
-u_i(C) &= \pi_0\beta \\
+u_i(A) &= \pi_0\beta \\
 \end{aligned}
 $$
 
@@ -65,7 +65,7 @@ $$
 
 From these conditions, we conclude the following:
 
--   As $(\pi_v-\pi_0) \rightarrow0$, the Voter feels more confident about their preferred candidate winning the election, and the threshold for casting NOTA lowers. In other words, if the Voter believes that the election is going to be won by their preferred candidate even without their vote, then they can afford to "waste" their vote by casting NOTA instead and enjoy expressive benefits instead. Thus, competitive constituencies might see more usage of NOTA.
+-   As $(\pi_v-\pi_0) \rightarrow0$, the Voter feels more confident about their preferred candidate winning the election, and the threshold for casting NOTA lowers. In other words, if the Voter believes that the election is going to be won by their preferred candidate even without their vote, then they can afford to "waste" their vote by casting NOTA instead and enjoy expressive benefits instead. Thus, competitive constituencies might see less usage of NOTA.
 
 -   As $\beta \rightarrow 0$, the Voter becomes more and more indifferent to the competing candidates or, alternatively, the candidates are largely undifferentiated to the Voter. Thus, the policy loss that they expect from not electing their preferred candidate is lower, which means that they are more inclined to vote NOTA.
 
@@ -495,11 +495,16 @@ etable(
 
 Overall, we find that NOTA had modest to no effect on victory margins, turnout rates, and criminal associations of candidates. These insignificant results are unsurprising, since the effort involved in voting NOTA is substantial. After all, even though 6,372,220 NOTA votes were cast in the last general election in 2024, they accounted for $0.99\%$ of the total vote share. Thus, while the decision to vote for NOTA is interesting political behaviour, it continues to be fringe behaviour nonetheless.
 
-Another limitation of our study is that we did not account for many constituency level covariates that could have affected our results. That said, the effects we found were already insubstantial and insignificant, so adding further controls would not have made NOTA more significant.
+Identification of the impacts of NOTA behaviour is a hard problem here, as NOTA was introduced nationwide at teh same time, and there is no way to disambiguate NOTA effects from post-2013 time effects. Another limitation of our study is that we could not account for many constituency level covariates that could have affected our results. That said, the effects we found were already insubstantial and insignificant.
+
+Our formal model suggests that NOTA is most attractive in safe seats and when candidates are largely undifferentiated, since in both cases the opportunity cost of a protest vote is low. While identification challenges remain, this is consistent with our null empirical results: if NOTA draws voters who would not have changed the outcome anyway, we should not expect it to affect margins, turnout, or candidate selection.
 
 Future research can look into the reasons why NOTA may be used with greater frequency in municipal and local elections, as voters may be able to better coordinate and send a stronger signal to the politicians and their parties. Such coordination may be harder to achieve for large-scale state-level or national elections.
 
 # References
+
+::: {#refs}
+:::
 
 Kumar, Sanjay (2014): "Is NOTA Serving Any Purpose?" Mint, 24 April, <http://www.livemint.> com/0pinion/b6ZPsuUYS2G3fWR2KItpaJ/Is NOTA-serving-any-purpose.html.
 
