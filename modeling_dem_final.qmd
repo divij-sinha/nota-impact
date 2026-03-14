@@ -30,7 +30,7 @@ To contribute to this growing literature, we use data from state legislature ele
 
 -   How has NOTA affected the number of electoral candidates with criminal associations?
 
-**Preview of findings:**
+To briefly preview the results, we find that NOTA had modest to no effect on victory margins, turnout rates, and criminal associations of candidates.
 
 The rest of this project proceeds as follows: the second section presents a basic decision model to show the circumstances under which a voter would be inclined to cast a NOTA vote, the third section gives a brief overview of the datasets we are using, and the fourth section shows our analysis and results. The final section concludes.
 
