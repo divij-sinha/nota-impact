@@ -2,7 +2,7 @@
 title: Final Project for Modeling Democracy
 authors: Moksha Sharma, Divij Sinha
 format: pdf
-#bibliography: references.bib
+bibliography: references.bib
 execute:
   cache: true
 echo: false
@@ -12,13 +12,13 @@ warning: false
 
 # Introduction
 
-Voting is costly: eligible voters need to collect information on candidates, formulate their preferences, and find the time to express these preferences at the ballot (Downs 1957, Feddersen and Sandroni 2006). Given these costs, political scientists and economists have offered many explanations for why citizens make the effort to vote despite their very low probability of casting the pivotal vote. Existing explanations including the policy benefits of voting for the voter (Downs 1957), psychological benefits from fulfilling one's civic duties (Riker and Ordeshook 1968), expressive benefits from supporting one's preferred candidates (Schuessler 2000), and signaling benefits from protest voting and abandoning preferred candidates to express discontentment (Kselman and Niou 2011).
+Voting is costly: eligible voters need to collect information on candidates, formulate their preferences, and find the time to express these preferences at the ballot (@downs1957economic, @feddersen2006theory). Given these costs, political scientists and economists have offered many explanations for why citizens make the effort to vote despite their very low probability of casting the pivotal vote. Existing explanations including the policy benefits of voting for the voter (@downs1957economic), psychological benefits from fulfilling one's civic duties (@riker1968theory), expressive benefits from supporting one's preferred candidates (@schuessler2000logic), and signaling benefits from protest voting and abandoning preferred candidates to express discontentment (@kselman2011protest).
 
-This project focuses on the latter motivation for voting in India, and specifically for voting for no one. Many jurisdictions offer voters the option of formally expressing their discontentment with existing candidates by voting for none of them. This option to vote for “none of the above” (NOTA) was introduced in India in 2013 in an order of the Supreme Court. The stated goal of this policy was to boost turnout and convey to political parties which candidates they should not field in elections again (BBC 2013). In fact, the Supreme Court specifically argued that NOTA would give voters a proper mechanism for punishing candidates who are known to be associated with criminality (Goel 2018).
+This project focuses on the latter motivation for voting in India, and specifically for voting for no one. Many jurisdictions offer voters the option of formally expressing their discontentment with existing candidates by voting for none of them. This option to vote for “none of the above” (NOTA) was introduced in India in 2013 in an order of the Supreme Court. The stated goal of this policy was to boost turnout and convey to political parties which candidates they should not field in elections again (@bbc2013nota). In fact, the Supreme Court specifically argued that NOTA would give voters a proper mechanism for punishing candidates who are known to be associated with criminality (@goel2018patterns).
 
-However, despite these lofty aims, NOTA carries no bite in its implementation in India (Association for Democratic Reforms 2024). While NOTA votes are counted and reported, they are essentially treated as invalid votes. The winning candidate is whomever gets the plurality of the remaining votes. While some countries require a bi-election to be conducted if the NOTA vote-share exceeds a certain threshold, there are no such requirements in India. Similarly, political parties are not required to not field the same candidates if, for instance, they achieve fewer votes than the share of NOTA votes. Thus, NOTA remains largely toothless and is little more than a costly signaling mechanism for casting protest votes.
+However, despite these lofty aims, NOTA carries no bite in its implementation in India (@adr2024nota). While NOTA votes are counted and reported, they are essentially treated as invalid votes. The winning candidate is whomever gets the plurality of the remaining votes. While some countries require a bi-election to be conducted if the NOTA vote-share exceeds a certain threshold, there are no such requirements in India. Similarly, political parties are not required to not field the same candidates if, for instance, they achieve fewer votes than the share of NOTA votes. Thus, NOTA remains largely toothless and is little more than a costly signaling mechanism for casting protest votes.
 
-Given this setup, this project seeks to look into the various ways NOTA has affected electoral outcomes in India. Descriptive work and existing research so far have generated various conflicting results. While Goel (2018) found no relationship between NOTA use and literacy rates, increasing turnouts, or criminality in elections, Kailthya and Le (2025) found that NOTA was correlated with increased nighttime luminosity, which they considered to be a measure of democratic accountability. Using structural estimation, Ujhelyi, Chatterjee, and Szabo (2020) also argued that NOTA can improve political participation, albeit through a different mechanism, which is increasing turnout from voters who would have otherwise abstained.
+Given this setup, this project seeks to look into the various ways NOTA has affected electoral outcomes in India. Descriptive work and existing research so far have generated various conflicting results. While @goel2018patterns found no relationship between NOTA use and literacy rates, increasing turnouts, or criminality in elections, @kailthya2025nota found that NOTA was correlated with increased nighttime luminosity, which they considered to be a measure of democratic accountability. Using structural estimation, @ujhelyi2021none also argued that NOTA can improve political participation, albeit through a different mechanism, which is increasing turnout from voters who would have otherwise abstained.
 
 To contribute to this growing literature, we use data from state legislature elections in India alongside data on criminal affidavits against political candidates. Using these data sources, we investigate the following questions regarding the usage of NOTA:
 
@@ -498,105 +498,6 @@ Overall, we find that NOTA had modest to no effect on victory margins, turnout r
 Another limitation of our study is that we did not account for many constituency level covariates that could have affected our results. That said, the effects we found were already insubstantial and insignificant, so adding further controls would not have made NOTA more significant.
 
 Future research can look into the reasons why NOTA may be used with greater frequency in municipal and local elections, as voters may be able to better coordinate and send a stronger signal to the politicians and their parties. Such coordination may be harder to achieve for large-scale state-level or national elections.
-
-----END----
-
-NOTE: The rest is still WIP
-
-However, if elections are close, people seem to be voting for NOT nota so the election has more win margin(??)
-
-````{=html}
-<!-- 
-**Distribution of NOTA vote share**
-
-```{r}
-ggplot(data = nota_margin, aes(x = nota_vote_share * 100)) +
-    geom_density(fill = "steelblue", alpha = 0.4, color = "steelblue4") +
-    geom_vline(xintercept = 1, linetype = "dashed", color = "firebrick", linewidth = 0.7) +
-    geom_vline(xintercept = 2, linetype = "dotted", color = "firebrick", linewidth = 0.7) +
-    annotate("text", x = 1.1, y = Inf, label = "1%", vjust = 2, hjust = 0, color = "firebrick", size = 3) +
-    annotate("text", x = 2.1, y = Inf, label = "2%", vjust = 2, hjust = 0, color = "firebrick", size = 3) +
-    labs(
-        x = "NOTA vote share (%)",
-        y = "Density",
-        title = "Distribution of NOTA vote share across elections"
-    ) +
-    theme_minimal()
-```
-
-The distribution is heavily right-skewed: the vast majority of elections see NOTA below 2%, but a non-trivial tail extends beyond that. The 1% and 2% reference lines put the "spoiler zone" in context — the elections flagged above as margin < NOTA votes live in this right tail.
--->
-````
-
-````{=html}
-<!-- **NOTA vote share vs. winning margin**
-
-```{r}
-nota_margin_plot <- nota_margin %>%
-    mutate(
-        nota_vote_share_perc = nota_vote_share * 100,
-        spoiler = diff_votes <= 0
-    )
-
-ggplot(data = nota_margin_plot, aes(x = nota_vote_share_perc, y = win_margin_perc, color = spoiler)) +
-    geom_point(alpha = 0.3, size = 0.8) +
-    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black", linewidth = 0.8) +
-    scale_color_manual(
-        values = c("FALSE" = "steelblue", "TRUE" = "firebrick"),
-        labels = c("FALSE" = "Margin > NOTA", "TRUE" = "Margin ≤ NOTA"),
-        name = NULL
-    ) +
-    coord_cartesian(xlim = c(0, 8), ylim = c(0, 20)) +
-    labs(
-        x = "NOTA vote share (%)",
-        y = "Win margin (% of valid votes)",
-        title = "NOTA vote share vs. winning margin",
-        subtitle = "Elections below the diagonal line have margin ≤ NOTA votes"
-    ) +
-    theme_minimal() +
-    theme(legend.position = "bottom")
-```
-
-Elections in red fall below the diagonal — their margin of victory was smaller than the NOTA vote. These are the elections where NOTA was structurally decisive, even though it mechanically could not affect the outcome. The clustering of most elections well above the diagonal confirms that this is a tail phenomenon, but the red points establish that it is not negligible.
- -->
-````
-
-## Other tables
-
-Criminal affidavits per const
-
-```{r}
-adr_election_crim %>%
-    group_by(num_criminals) %>%
-    summarise(
-        median_nota_vote_share = median(nota_vote_share, na.rm = TRUE),
-        mean_nota_vote_share = mean(nota_vote_share, na.rm = TRUE)
-    ) %>%
-    ggplot(data = .) +
-    geom_col(aes(x = num_criminals, y = median_nota_vote_share))
-```
-
-```{r}
-major_crim <- adr_cand %>%
-    filter(is_nota == 1) %>%
-    group_by(sh_election_id) %>%
-    summarise(
-        crime_major = sum(crime_major_adr, na.rm = TRUE),
-    ) %>%
-    inner_join(election_nota_votes)
-
-
-cm_nota <- major_crim %>%
-    group_by(crime_major) %>%
-    summarise(
-        median_nota_vote_share = median(nota_vote_share, na.rm = TRUE),
-        mean_nota_vote_share = mean(nota_vote_share, na.rm = TRUE)
-    )
-
-
-ggplot(data = cm_nota) +
-    geom_col(aes(x = crime_major, y = median_nota_vote_share))
-```
 
 # References
 
